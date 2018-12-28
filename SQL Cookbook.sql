@@ -621,40 +621,244 @@ SHOW INDEX FROM emp;
 # ################################# Chapter 6. Working with Strings 
 
 
--- 6.1 
+-- 6.1 Walking a string 
 
--- 6.2 
-
--- 6.3 
-
--- 6.4 
-
--- 6.5 
-
--- 6.6 
-
--- 6.7 
-
--- 6.8 
-
--- 6.9
-
--- 6.10 
-
--- 6.11 
-
--- 6.12
-
--- 6.13 
-
--- 6.14 
-
--- 6.15
+SELECT SUBSTR(e.ename, iter.pos,1) AS C
+FROM 
+		(SELECT ename 
+		 FROM emp
+		 WHERE ename = 'KING') e,
+		(SELECT id AS pos
+         FROM t10) iter
+WHERE iter.pos <= length(e.ename);
 
 
+SELECT SUBSTR(e.ename, iter.pos) a,
+	   SUBSTR(e.ename, LENGTH(e.ename) - iter.pos + 1) b
+FROM (
+		SELECT ename
+        FROM emp
+        WHERE ename = 'KING') e,
+	 ( SELECT id pos
+	   FROM t10) iter
+WHERE iter.pos <= LENGTH(e.ename);
+
+-- 6.2 Embedding quotes within string literals 
+SELECT 'g''day mate' qmarks 
+FROM t1 
+UNION ALL
+SELECT 'beavers''teeth' 
+FROM t1 
+UNION ALL 
+SELECT ''''
+FROM t1;
+
+SELECT 'apple core','apple''s core', CASE WHEN '' is NULL THEN 0 ELSE 1 END
+FROM t1;
+
+SELECT '''' AS quote 
+FROM t1;
+
+-- 6.3 Counting the occurrences of a character in a string 
+
+SELECT (LENGTH('10, CLARK, MANAGER') - 
+		LENGTH(REPLACE('10,CLARK,MANAGER',',','')))/LENGTH(',') AS cnt
+FROM t1;
+
+SELECT 
+		(LENGTH('HELLO HELLO') - 
+		 LENGTH(REPLACE('HELLO HELLO','LL','')))/LENGTH('LL')
+         AS correct_cnt,
+		(LENGTH('HELLO HELLO') - 
+         LENGTH(REPLACE('HELLO HELLO','LL',''))) 
+         AS incorrect_cnt;
+
+-- 6.4 Removing unwanted characters from a string 
+SELECT ename, 
+	   REPLACE(
+       REPLACE(
+       REPLACE(
+       REPLACE(
+       REPLACE(ename, 'A',''),'E',''),'I',''),'O',''),'U','')
+       AS stripped1,
+       sal,
+       REPLACE(sal,0,'') AS stripped2
+FROM emp;
+
+-- 6.5 Separating numeric and character data
+# TRANSLATE is not supported in MySQL
+
+-- 6.6 Determining whether a string is alphanumeric
+CREATE VIEW V AS
+SELECT ename AS data
+FROM emp
+WHERE deptno = 10
+UNION ALL
+SELECT CONCAT(ename, ',$',sal,'.00') AS data
+FROM emp
+WHERE deptno = 20
+UNION ALL
+SELECT CONCAT(ename, deptno) AS data
+FROM emp
+WHERE deptno = 30;
+
+SELECT data 
+FROM V
+WHERE data REGEXP '[^0-9a-zA-Z]' = 0;
+
+
+-- 6.7 Extracting initials from a name 
+
+SELECT CASE 
+	   WHEN cnt = 2
+       THEN TRIM(TRAILING '.' 
+				 FROM CONCAT_WS('.',
+								SUBSTR(SUBSTRNG_INDEX(name,'',1),1,1),
+                                SUBSTR(name, 
+									   LENGTH(SUNSTRING_INDEX(name, '',-1),1,1),'.'))
+		ELSE TRIM(TRAILING '.'
+				  FROM CONCAT_WS('.',
+								 SUBSTR(SUBSTRING_INDEX(name, '',1),1,1),
+                                 SUBSTR(SUBSTRING_INDEX(name, '',-1),1,1)))
+		END AS initials
+FROM (
+		SELECT name, LENGTH(name)-LENGTH(REPLACE(name, '','')) AS cnt
+        FROM (SELECT REPLACE('Stewie Griffin','.','') AS name
+			  FROM t1) y
+	  ) x;
+
+-- 6.8 Ordering by parts of a string 
+
+SELECT ename
+FROM emp
+ORDER BY SUBSTR(ename, LENGTH(ename)-1);
+
+-- 6.9 Ordering by a number in s string 
+# TRANSLATE is not supported in MySQL
+
+-- 6.10 Creating a delimited list from table rows
+SELECT deptno,
+	   GROUP_CONCAT(ename ORDER BY empno SEPARATOR ',') AS emps
+FROM emp
+GROUP BY deptno;
+
+-- 6.11 Converting delimited data into a multi-valued IN-list
+SELECT ename, sal, deptno
+FROM emp
+WHERE empno IN ('7654, 7698, 7782, 7788');
+
+SELECT empno, ename, sal, deptno
+FROM emp
+WHERE emp IN(
+			  SELECT SUBSTRING_INDEX(
+					 SUBSTRING_INDEX(list.vals, ',', iter.pos),',',-1) empno
+			  FROM(SELECT id pos 
+				   FROM t10) AS iter,
+				  (SELECT '7654, 7698, 7782, 7788' AS vals
+                   FROM t1) list
+			  WHERE iter.pos <= (LENGTH(list.vals) - LENGTH(REPLACE(list.vals,',','')))+1
+		     );
+
+
+-- 6.12 Alphabetizing a string 
+SELECT ename, 
+	   GROUP_CONCAT(c ORDER BY c SEPARATOR '')
+FROM( SELECT ename, 
+			 SUBSTR(a.ename, iter.pos, 1) c
+	  FROM emp a,
+           (SELECT id pos 
+            FROM t10) iter
+	  WHERE iter.pos <= LENGTH(a.ename)
+      ) x
+GROUP BY ename;
+
+-- 6.13 Identifying strings that can be treated as numbers 
+CREATE view V as
+SELECT CONCAT(SUBSTR(ename, 1, 2), 
+			  REPLACE(CAST(deptno AS CHAR(4)), '',''),
+              SUBSTR(ename, 3,2)
+              ) AS mixed
+FROM emp
+WHERE deptno = 10
+UNION ALL
+SELECT REPLACE(CAST(empno AS CHAR(4)),'','')
+FROM emp
+WHERE deptno = 20
+UNION ALL
+SELECT ename
+FROM emp
+WHERE deptno = 30;
+
+# MySQL does not support the TRANSLATE function
+
+SELECT CAST(GROUP_CONCAT(c ORDER BY pos SEPARATOR '') AS unsigned) AS MIXED1
+FROM (
+		SELECT v.mixed, iter.pos, SUBSTR(v.mixed, iter.pos, 1) AS c
+        FROM V,
+			(SELECT id pos 
+             FROM t10) iter
+		WHERE iter.pos <= LENGTH(v.mixed) AND
+			  ASCII(SUBSTR(v.mixed, iter.pos,1)) BETWEEN 48 AND 57
+		) y
+GROUP BY mixed
+ORDER BY 1;
+
+-- 6.14 Extracting the nth delimited substring 
+SELECT name
+FROM (
+		SELECT iter.pos,
+			   SUBSTRING_INDEX(
+								SUBSTRING_INDEX(src.name, ',', iter.pos),','-1) name
+		FROM V src,
+			 (SELECT id pos
+			  FROM t10) iter
+		WHERE iter.pos <= LENGTH(scr.name) - LENGTH(REPLACE(scr.name,',',''))
+	 ) x
+WHERE pos = 2;
+
+-- 6.15 Parsing an IP address
+SELECT  SUBSTRING_INDEX(SUBSTRING_INDEX(y.ip,'.',1),'.',-1) a,
+		SUBSTRING_INDEX(SUBSTRING_INDEX(y.ip,'.',2),'.',-1) b,
+		SUBSTRING_INDEX(SUBSTRING_INDEX(y.ip,'.',3),'.',-1) c,
+		SUBSTRING_INDEX(SUBSTRING_INDEX(y.ip,'.',4),'.',-1) d
+FROM (SELECT '92.111.0.2' AS ip
+	  FROM t1) y;
 
 
 
+
+
+# ########################### Chapter 7. Working with Numbers 
+
+-- 7.1 
+
+-- 7.2 
+
+-- 7.3 
+
+-- 7.4 
+
+-- 7.5 
+
+-- 7.6 
+
+-- 7.7 
+
+-- 7.8 
+
+-- 7.9 
+
+-- 7.10
+
+-- 7.11
+
+-- 7.12
+
+-- 7.13
+
+-- 7.14
+
+-- 7.15
 
 
 
