@@ -830,21 +830,124 @@ FROM (SELECT '92.111.0.2' AS ip
 
 # ########################### Chapter 7. Working with Numbers 
 
--- 7.1 
+-- 7.1 Computing an average
+SELECT AVG(sal) AS avg_sal
+FROM emp;
 
--- 7.2 
+SELECT deptno, AVG(sal) AS avg_sal
+FROM emp
+GROUP BY deptno;
 
--- 7.3 
+SELECT AVG(sal)
+FROM emp
+GROUP BY deptno;
 
--- 7.4 
+-- 7.2 Finding the Min/Max value in a column
+SELECT MIN(sal) AS min_sal, MAX(sal) AS max_sal
+FROM emp;
 
--- 7.5 
+SELECT deptno, MIN(sal) AS min_sal, MAX(sal) AS max_sal
+FROM emp
+GROUP BY deptno;
 
--- 7.6 
+SELECT deptno, comm
+FROM emp
+WHERE deptno IN(10,30)
+ORDER BY 1;
 
--- 7.7 
+SELECT MIN(comm), MAX(comm)
+FROM emp;
 
--- 7.8 
+SELECT deptno, MIN(comm), MAX(comm)
+FROM emp
+GROUP BY deptno;
+
+-- 7.3 Summing the values in a column
+SELECT SUM(sal)
+FROM emp;
+
+SELECT deptno, SUM(sal) AS total_for_dept
+FROM emp
+GROUP BY deptno;
+
+SELECT deptno, comm
+FROM emp
+WHERE deptno IN(10,30)
+ORDER BY 1;
+
+SELECT SUM(comm)
+FROM emp;
+
+SELECT deptno, SUM(comm)
+FROM emp
+WHERE deptno IN(10,30)
+GROUP BY deptno;
+
+
+-- 7.4 Counting rows in a table
+SELECT COUNT(*)
+FROM emp;
+
+SELECT deptno, COUNT(*)
+FROM emp
+GROUP BY deptno;
+
+SELECT deptno, comm
+FROM emp;
+
+SELECT COUNT(*), COUNT(deptno), COUNT(comm), COUNT('hello')
+FROM emp;
+
+SELECT deptno, COUNT(*), COUNT(comm), COUNT('hello')
+FROM emp
+GROUP BY deptno;
+
+SELECT COUNT(*) 
+FROM emp
+GROUP BY deptno;
+
+-- 7.5 Counting values in a column 
+SELECT COUNT(comm)
+FROM emp;
+
+-- 7.6 Generating a running total
+SELECT e.ename, e.sal,
+	   (SELECT SUM(d.sal) 
+        FROM emp d
+        WHERE d.empno <= e.empno) AS running_total
+FROM emp e 
+ORDER BY 3;
+
+SELECT ename, sal, SUM(sal) OVER
+FROM emp
+ORDER BY 2;
+
+SELECT empno, sal,
+	   SUM(sal) OVER(ORDER BY sal, empno) AS running_total1,
+       SUM(sal) OVER(ORDER BY sal) AS running_total2
+FROM emp
+ORDER BY 2;
+
+-- 7.7 Generating a running product
+
+SELECT e.empno, e.ename, e.sal,
+		(SELECT EXP(SUM(LN(d.sal)))
+         FROM emp d
+         WHERE d.empno <= e.empno AND 
+               e.deptno = d.deptno) AS running_prod
+FROM emp e 
+WHERE e.deptno = 10;
+
+-- 7.8 Calculating a running difference 
+SELECT a.empno, a.ename, a.sal,
+		(SELECT CASE WHEN a.empno = MIN(b.empno) THEN SUM(b.sal) 
+				ELSE SUM(-b.sal)
+                END
+		 FROM emp b
+         WHERE b.empno <= a.empno AND 
+			   b.deptno = a.deptno) AS rnk
+FROM emp a 
+WHERE a.deptno = 10;
 
 -- 7.9 
 
