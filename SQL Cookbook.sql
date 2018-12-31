@@ -949,19 +949,88 @@ SELECT a.empno, a.ename, a.sal,
 FROM emp a 
 WHERE a.deptno = 10;
 
--- 7.9 
+-- 7.9 Calculating a mode
+SELECT sal
+FROM emp
+WHERE deptno = 20
+GROUP BY sal
+HAVING COUNT(*) >= ALL(SELECT COUNT(*)
+					   FROM emp
+                       WHERE deptno = 20
+                       GROUP BY sal);
 
--- 7.10
+-- 7.10 Calculating a median
+SELECT AVG(sal)
+FROM ( SELECT e.sal
+	   FROM emp e, emp d
+       WHERE e.deptno = d.deptno AND
+       e.deptno = 20
+       GROUP BY e.sal
+       HAVING SUM(CASE WHEN e.sal = d.sal 
+				  THEN 1 ELSE 0 END) >= ABS(SUM(SIGN(e.sal - d.sal)))
+	 );
 
--- 7.11
+-- 7.11 Determining the percentage of a total
+SELECT (
+		SUM(CASE WHEN deptno = 10 THEN sal END)/SUM(sal)
+        ) * 100 AS pct
+FROM emp;
 
--- 7.12
+-- 7.12 Aggregating nullable columns 
+SELECT AVG(COALESCE(comm, 0)) AS avg_comm
+FROM emp
+WHERE deptno = 30;
 
--- 7.13
+-- 7.13 Computing averages without high and low values
+SELECT AVG(sal)
+FROM emp
+WHERE sal NOT IN(
+					SELECT MIN(sal) FROM emp,
+                    SELECT MAX(sal) FROM emp
+				);
 
--- 7.14
+SELECT (SUM(sal) - MIN(sal) - MAX(sal)) / (COUNT(*)-2)
+FROM emp;
 
--- 7.15
+-- 7.14 Converting alphanumeric strings into numbers
+# TRANSLATE function is not supported in MySQL
+
+-- 7.15 Changing values in a running total
+SELECT CASE WHEN v1.trx = 'PY'
+			THEN 'PAYMENT'
+            ELSE 'PURCHASE'
+            END AS trx_type,
+		v1.amt, 
+        (SELECT SUM(CASE WHEN v2.trx = 'PY'
+						 THEN -v2.amt 
+                         ELSE v2.amt
+                         END)
+		 FROM V v2
+         WHERE v2.id <= v1.id) AS balance 
+FROM V v1;
+
+
+
+
+# ######################## Chapter 8. Date Arithmetic
+
+-- 8.1 
+
+-- 8.2 
+
+-- 8.3
+
+-- 8.4 
+
+-- 8.5 
+
+-- 8.6 
+
+-- 8.7 
+
+
+
+
 
 
 
