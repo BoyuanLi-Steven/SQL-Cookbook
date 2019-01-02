@@ -1236,17 +1236,99 @@ FROM (
 
 # #################### Chapter 9. Date Manipulation 
 
--- 9.1 
+-- 9.1 Determining if a year is a leap year
+SELECT DAY(
+			LAST_DAY(
+            DATE_ADD(
+            DATE_ADD(
+            DATE_ADD(current_date, INTERVAL -DAYOFYEAR(current_date) DAY) ,
+					 INTERVAL 1 DAY),
+                     INTERVAL 1 MONTH))) dy 
+FROM t1;
 
--- 9.2 
+SELECT DATE_ADD(CURRENT_DATE, INTERVAL -DAYOFYEAR(CURRENT_DATE) DAY) FROM t1;
 
--- 9.3 
+SELECT DATE_ADD(
+				DATE_ADD(CURRENT_DATE, INTERVAL -DAYOFYEAR(CURRENT_DATE) DAY), INTERVAL 1 DAY)
+FROM t1;
 
--- 9.4 
 
--- 9.5 
+SELECT DATE_ADD(
+	   DATE_ADD(
+       DATE_ADD(CURRENT_DATE, INTERVAL -DAYOFYEAR(CURRENT_DATE) DAY), 
+				INTERVAL 1 DAY),
+                INTERVAL 1 MONTH)
+FROM t1;
 
--- 9.6 
+SELECT LAST_DAY(
+	   DATE_ADD(
+	   DATE_ADD(
+       DATE_ADD(CURRENT_DATE, INTERVAL -DAYOFYEAR(CURRENT_DATE) DAY), 
+				INTERVAL 1 DAY),
+                INTERVAL 1 MONTH))
+FROM t1;
+
+-- 9.2 Determining the number of days in a year
+
+SELECT DATEDIFF((curr_year + INTERVAL 1 YEAR), curr_year)
+FROM (
+		SELECT ADDDATE(CURRENT_DATE, -DAYOFYEAR(CURRENT_DATE)+1) curr_year
+        FROM t1
+	 ) x;
+
+-- 9.3 Extracting units of time from a date
+SELECT DATE_FORMAT(CURRENT_TIMESTAMP, '%k') hr,
+	   DATE_FORMAT(CURRENT_TIMESTAMP, '%i') min,
+       DATE_FORMAT(CURRENT_TIMESTAMP, '%s') sec,
+       DATE_FORMAT(CURRENT_TIMESTAMP, '%d') dy,
+       DATE_FORMAT(CURRENT_TIMESTAMP, '%m') mon,
+       DATE_FORMAT(CURRENT_TIMESTAMP, '%Y') yr
+FROM t1;
+
+-- 9.4 Determining the first and last day of a month
+
+SELECT DATE_ADD(CURRENT_DATE, INTERVAL -DAY(CURRENT_DATE)+1 DAY) firstday,
+	   LAST_DAY(CURRENT_DATE) lastday
+FROM t1;
+
+-- 9.5 Determining all dates for a particular weekday throughout a year
+SELECT dy
+FROM (
+		SELECT ADDDATE(x.dy, INTERVAL t500.id-1 DAY) dy
+        FROM ( 	
+				SELECT dy, YEAR(dy) yr 
+                FROM ( 	
+						SELECT ADDDATE(
+							   ADDDATE(CURRENT_DATE,
+									   INTERVAL -DAYOFYEAR(CURRENT_DATE) DAY),
+                                       INTERVAL 1 DAY) dy
+						FROM t1
+					  ) tmp1
+			  ) x,
+		      t500
+		 WHERE YEAR(ADDDATE(x.dy, INTERVAL t500.id-1 DAY)) = x.yr
+	  ) tmp2
+WHERE DAYNAME(dy) = 'Friday';
+
+-- 9.6 Determining the date of the first and last occurrence of a specific weekday in a month
+SELECT first_monday, 
+       CASE MONTH(ADDDATE(first_monday,28))
+			WHEN mth THEN ADDDATE(first_monday, 28)
+					 ELSE ADDDATE(first_monday, 21)
+	   END last_monday
+FROM (
+		SELECT CASE SIGN(DAYOFWEEK(dy)-2)
+					WHEN 0 THEN dy
+                    WHEN -1 THEN ADDDATE(dy, ABS(DAYOFWEEK(dy)-2))
+                    WHEN 1 THEN ADDDATE(dy, (7-(DAYOFWEEK(dy)-2)))
+				END first_monday,
+                mth
+		FROM ( SELECT ADDDATE(ADDDATE(CURRENT_DATE, -DAY(CURRENT_DATE)),1) dy,
+					  MONTH(CURRENT_DATE) mth
+			   FROM t1
+			 ) x
+	  ) y;
+
 
 -- 9.7 
 
