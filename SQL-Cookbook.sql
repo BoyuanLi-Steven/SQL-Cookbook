@@ -1330,19 +1330,127 @@ FROM (
 	  ) y;
 
 
--- 9.7 
+-- 9.7 Creating a calendar
+SELECT MAX(CASE dw WHEN 2 THEN dm END) AS Mo,
+	   MAX(CASE dw WHEN 3 THEN dm END) AS Tu,
+       MAX(CASE dw WHEN 4 THEN dm END) AS We,
+       MAX(CASE dw WHEN 5 THEN dm END) AS Th,
+       MAX(CASE dw WHEN 6 THEN dm END) AS Fr,
+       MAX(CASE dw WHEN 7 THEN dm END) AS Sa,
+       MAX(CASE dw WHEN 1 THEN dm END) AS Su
+FROM (SELECT DATE_FORMAT(dy, '%u') wk,
+			 DATE_FORMAT(dy, '%d') dm,
+             DATE_FORMAT(dy, '%w')+1 dw
+	  FROM (
+				SELECT ADDDATE(x.dy, t500.id-1) dy,
+					   x.mth
+				FROM ( 
+						SELECT ADDDATE(CURRENT_DATE,-DAYOFMONTH(CURRENT_DATE)+1) dy,
+							   DATE_FORMAT(ADDDATE(CURRENT_DATE, -DAYOFMONTH(CURRENT_DATE)+1),'%m') mth
+						FROM t1
+					  ) x,
+                      t500
+				WHERE t500.id <= 31 AND
+					  DATE_FORMAT(ADDDATE(x.dy,t500.id-1),'%m') = x.mth
+		   ) y
+	   ) z
+GROUP BY wk
+ORDER BY wk;
 
--- 9.8 
 
--- 9.9
+-- 9.8 Listing quarter start and end dates for the year
+SELECT QUARTER(ADDDATE(dy, -1)) OTR,
+	   DATE_ADD(dy, INTERVAL -3 MONTH) Q_start,
+       ADDDATE(dy, -1) Q_end
+FROM (
+		SELECT DATE_ADD(dy, INTERVAL (3*id) MONTH) dy
+        FROM ( SELECT id,	
+					  ADDDATE(CURRENT_DATE, -DAYOFYEAR(CURRENT_DATE)+1) dy
+			   FROM t500
+               WHERE id<=4
+		      ) x
+	  ) y;
 
--- 9.10
+-- 9.9 Determining quarter start and end dates for a given quarter
+SELECT DATE_ADD(
+				ADDDATE(q_end, -DAY(q_end)+1),
+                INTERVAL -2 MONTH) q_start,
+                q_end
+FROM ( SELECT LAST_DAY(
+			  STR_TO_DATE(
+              CONCAT(
+              SUBSTR(yrq,1,4), MOD(yrq,10)*3),'%Y%m')) q_end
+		FROM (
+				SELECT 20051 AS yrq FROM t1 UNION ALL
+                SELECT 20052 AS yrq FROM t1 UNION ALL
+                SELECT 20053 AS yrq FROM t1 UNION ALL
+                SELECT 20054 AS yrq FROM t1 
+			  ) x
+	  ) y;
 
--- 9.11
 
--- 9.12
+-- 9.10 Filling in missing dates
 
--- 9.13
+SELECT DISTINCT 
+	   EXTRACT(YEAR FROM hiredate) AS year
+FROM emp;
+
+
+SELECT z.mth, COUNT(e.hiredate) num_hired
+FROM ( SELECT DATE_ADD(min_hd, INTERVAL t500.id-1 MONTH) mth
+	   FROM ( SELECT min_hd, DATE_ADD(max_hd, INTERVAL 11 MONTH) max_hd
+			  FROM ( SELECT ADDDATE(MIN(hiredate),-DAYOFYEAR(MIN(hiredate))+1) min_hd,
+							ADDDATE(MAX(hiredate),-DAYOFYEAR(MAX(hiredate))+1_ max_hd
+					 FROM emp
+					) x
+			 ) y,
+             t500
+		WHERE DATE_ADD(min_hd, INTERVAL t500.id-1 MONTH ) <= max_hd
+	  ) z
+LEFT JOIN emp e 
+ON (z.mth = ADDDATE(DATE_ADD(LAST_DAY(e.hiredate), INTERVAL -1 MONTH), 1))
+GROUP BY z.mth
+ORDER BY 1;
+
+-- 9.11 Searching on specific units of time 
+
+SELECT ename
+FROM emp
+WHERE MONTHNAME(hiredate) IN ('February','December') OR 
+	  DAYNAME(hiredate) = 'Tuesday';
+
+-- 9.12 Comparing records using specific parts of a date
+
+SELECT CONCAT(a.ename, ' was hired on the same month and weekday as ',b.ename) msg
+FROM emp a, emp b
+WHERE DATE_FORMAT(a.hiredate,'%w%M') = DATE_FORMAT(b.hiredate,'%w%M') AND
+	  a.empno < b.empno
+ORDER BY a.ename;
+
+-- 9.13 Identifying overlapping date ranges
+SELECT a.empno, a.ename,
+	   CONCAT('project ',b.proj_id,'overlaps project ',a.proj_id) AS msg
+FROM emp_project a, emp_project b
+WHERE a.empno = b.empno AND
+	  b.proj_start >= a.proj_start AND
+      b.proj_start <= a.proj_end AND
+      a.proj_id != b.proj_id;
+
+
+
+
+# ########################### Chapter 10. Working with ranges
+
+-- 10.1 
+
+-- 10.2
+
+-- 10.3 
+
+-- 10.4 
+
+-- 10.5
+
 
 
 
