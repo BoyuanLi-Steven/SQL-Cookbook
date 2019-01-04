@@ -1441,35 +1441,190 @@ WHERE a.empno = b.empno AND
 
 # ########################### Chapter 10. Working with ranges
 
--- 10.1 
+-- 10.1 Locating a range of consecutive values
 
--- 10.2
+SELECT v1.proj_id,
+	   v1.proj_start,
+       v1.proj_end
+FROM V v1, V v2
+WHERE v1.proj_end = v2.proj_start;
 
--- 10.3 
+SELECT DISTINCT
+	   v1.proj_id,
+       v1.proj_start,
+       v1.proj_end
+FROM V v1, V v2
+WHERE v1.proj_end = v2.proj_start OR 
+	  v1.proj_start = v2.proj_end;
+      
+-- 10.2 Finding differences between rows in the same group or partition
 
--- 10.4 
-
--- 10.5
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+SELECT deptno, ename, hiredate, sal, 
+	   COALESCE(CAST(sal-next_sal AS CHAR(10)),'N/A') AS diff
+FROM 
+		(	SELECT e.deptno,
+				   e.ename,
+				   e.hiredate,
+				   e.sal,
+					(	SELECT MIN(sal)
+						FROM emp d 
+						WHERE d.deptno = e.deptno AND 
+							  d.hiredate = 
+								(	SELECT MIN(hiredate) 
+									FROM emp d 
+									WHERE e.deptno = d.deptno AND
+										  d.hiredate > e.hiredate) ) AS next_sal
+			FROM emp e
+		 ) x;
 
 
+SELECT e.deptno,
+	   e.ename,
+       e.hiredate,
+       e.sal,
+		(	SELECT MIN(hiredate) 
+			FROM emp d
+			WHERE e.deptno = d.deptno AND
+				  d.hiredate > e.hiredate) AS next_hire
+FROM emp e
+ORDER BY 1;
 
 
+SELECT e.deptno,
+	   e.ename,
+       e.hiredate, 
+       e.sal,
+		(	SELECT MIN(sal) 
+			FROM emp d 
+			WHERE d.deptno = e.deptno AND 
+				  d.hiredate = 
+					(	SELECT MIN(hiredate)
+						FROM emp d
+						WHERE e.deptno = d.deptno AND 
+							  d.hiredate > e.hiredate) ) AS next_sal
+FROM emp e
+ORDER BY 1;
+
+
+-- 10.3 Locating the beginning and end of a range of consecutive values
+
+CREATE VIEW v2 
+AS
+SELECT a.*,
+	   CASE WHEN(
+					SELECT b.proj_id
+                    FROM V b
+                    WHERE a.proj_start = b.proj_end
+				 ) IS NOT NULL THEN 0 ELSE 1
+		END AS flag
+FROM V a;
+
+
+SELECT proj_prg,
+	   MIN(proj_start) AS proj_start,
+       MAX(proj_end) AS proj_end
+FROM (
+		SELECT a.proj_id, a.proj_start, a.proj_end,
+				(	SELECT SUM(b.flag)
+					FROM V2 b 
+					WHERE b.proj_id <= a.proj_id) AS proj_grp
+		FROM V2 a
+	  ) x
+GROUP BY proj_grp;
+
+
+-- 10.4 Filling in missing values in a range of values
+
+
+SELECT y.yr, COALESCE(x.cnt, 0) AS cnt
+FROM (
+		SELECT min_year - MOD(CAST(min_year AS INT),10)+rn AS yr
+		FROM (
+					SELECT 
+						(	SELECT MIN(EXTRACT(YEAR FROM hiredate))
+							FROM emp) AS min_year,
+						  id - 1 AS rn
+					FROM t10) a
+			  ) y
+LEFT JOIN 
+(SELECT EXTRACT(YEAR FROM hiredate) AS yr, COUNT(*) AS cnt
+ FROM emp
+ GROUP BY EXTRACT(YEAR FROM hiredate)
+ ) x
+ON (y.yr = x.yr);
+
+
+-- 10.5	Generating consecutive numeric values
+WITH x (id)
+AS(
+SELECT 1
+FROM t1
+UNION ALL
+SELECT id+1
+FROM x
+WHERE id+1 <= 10)
+SELECT * FROM x;
+
+
+
+
+
+# ################################# Chapter 11. Advanced Searching 
+
+
+-- 11.1
+
+SELECT sal
+FROM emp
+ORDER BY sal
+LIMIT 5
+OFFSET 0;
+
+SELECT sal
+FROM emp
+ORDER BY sal
+LIMIT 5
+OFFSET 5;
+
+-- 11.2
+
+SELECT x.ename
+FROM (
+		SELECT a.ename,
+			   ( SELECT COUNT(*)
+				 FROM emp b
+                 WHERE b.ename <= a.ename) AS rn
+		FROM emp a 
+	  ) x
+WHERE MOD(x.rn,2) = 1;
+
+SELECT a.ename,
+		( SELECT COUNT(*)
+		  FROM emp b
+		  WHERE b.ename <= a.ename) AS rn
+FROM emp a
+ORDER BY 2;
+
+
+-- 11.3
+
+-- 11.4
+
+-- 11.5
+
+-- 11.6 
+
+-- 11.7
+
+-- 11.8
+
+-- 11.9
+
+-- 11.10
+
+-- 11.11
+
+-- 11.12 
 
 
 
