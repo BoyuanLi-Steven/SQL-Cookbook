@@ -1572,7 +1572,7 @@ SELECT * FROM x;
 # ################################# Chapter 11. Advanced Searching 
 
 
--- 11.1
+-- 11.1 Paginating through a result set
 
 SELECT sal
 FROM emp
@@ -1586,7 +1586,7 @@ ORDER BY sal
 LIMIT 5
 OFFSET 5;
 
--- 11.2
+-- 11.2 Skipping n rows from a table
 
 SELECT x.ename
 FROM (
@@ -1606,13 +1606,60 @@ FROM emp a
 ORDER BY 2;
 
 
--- 11.3
+-- 11.3 Incorporating or logic when using outer joins
 
--- 11.4
+SELECT e.ename, d.deptno, d.dname, d.loc
+FROM dept d
+LEFT JOIN emp e 
+ON (d.deptno = e.deptno AND 
+	(e.deptno = 10 OR e.deptno = 20))
+ORDER BY 2;
 
--- 11.5
+SELECT e.ename, d.deptno, d.dname, d.loc
+FROM dept d 
+LEFT JOIN
+( SELECT ename, deptno
+  FROM emp
+  WHERE deptno IN(10, 20)
+) e 
+ON (e.deptno = d.deptno)
+ORDER BY 2;
 
--- 11.6 
+-- 11.4 Determining which rows are reciprocals
+
+SELECT DISTINCT v1.*
+FROM V v1, V v2
+WHERE v1.test1 = v2.test2 AND
+	  v1.test2 = v2.test1 AND
+      v1.test1 <= v1.test2;
+
+-- 11.5 Selecting the top n records
+
+SELECT ename, sal
+FROM (
+	SELECT (
+			SELECT COUNT(DISTINCT b.sal)
+			FROM emp b
+			WHERE a.sal <= b.sal) AS rnk,
+			a.sal,
+			a.ename
+	FROM emp a )
+WHERE rnk <= 5;
+	
+# Error: every derived table must have its own alias
+
+SELECT (SELECT COUNT(DISTINCT b.sal)
+		FROM emp b
+        WHERE a.sal <= b.sal) AS rnk,
+        a.sal,
+        a.ename
+FROM emp a;
+
+-- 11.6 Finding records with the highest and lowest values
+SELECT ename
+FROM emp
+WHERE sal IN((SELECT MIN(sal) FROM emp),
+			 (SELECT MAX(sal) FROM emp));
 
 -- 11.7
 
