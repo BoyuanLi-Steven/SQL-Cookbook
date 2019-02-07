@@ -286,6 +286,257 @@ ON e.ename = V.ename
       AND e.sal = V.sal;
 
 -- 3.4 Retrieving values from one table that do not exist in another 
+SELECT deptno
+FROM dept 
+WHERE deptno NOT IN (SELECT deptno FROM emp);
+
+-- in sql, true or null is true, but false or null is null
+-- correlated subquery 
+SELECT d.deptno
+FROM dept d
+WHERE NOT EXISTS (  SELECT 1 
+                                        FROM emp e
+                                        WHERE d.deptno = e.deptno);
+
+-- 3.5 Retrieving rows from one table that do not correspond to rows in another 
+SELECT d.*
+FROM dept d 
+LEFT OUTER JOIN emp e
+ON (d.deptno = e.deptno)
+WHERE e.deptno IS NULL;
+
+-- 3.6 Adding joins to a query without interfering with other joins 
+
+CREATE TABLE emp_bonus (empno INTEGER, received DATE, type INTEGER);
+
+INSERT INTO emp_bonus (empno, received, type) VALUES (7369, '2005-03-14',1);
+INSERT INTO emp_bonus (empno, received, type) VALUES (7900, '2005-03-14',2);
+INSERT INTO emp_bonus (empno, received, type) VALUES (7788, '2005-03-14',3);
+
+SELECT * FROM emp_bonus;
+
+SELECT e.ename, d.loc
+FROM emp e, dept d 
+WHERE e.deptno = d.deptno;
+
+SELECT e.ename, d.loc, eb.received
+FROM emp e, dept d, emp_bonus eb
+WHERE e.deptno = d.deptno AND 
+			  e.empno = eb.empno;
+              
+SELECT e.ename, d.loc, eb.received
+FROM emp e 
+JOIN dept d 
+ON (e.deptno = d.deptno)
+LEFT JOIN emp_bonus eb
+ON (e.empno = eb.empno)
+ORDER BY 2;
+
+-- scalar subquery (a subquery placed in the SELECT list)
+SELECT e.ename, d.loc, (
+										  SELECT eb.received FROM emp_bonus eb
+                                          WHERE eb.empno = e.empno) AS received
+FROM emp e, dept d
+WHERE e.deptno = d.deptno
+ORDER BY 2;
+
+
+-- 3.7 Determining whether two tables have the same data 
+
+CREATE VIEW V AS 
+SELECT * 
+FROM emp
+WHERE deptno != 10
+UNION ALL
+SELECT * 
+FROM emp
+WHERE ename = 'WARD';
+
+SELECT *
+FROM V;
+
+
+select *
+from (
+select e.empno,e.ename,e.job,e.mgr,e.hiredate,
+e.sal,e.comm,e.deptno, count(*) as cnt
+from emp e
+group by empno,ename,job,mgr,hiredate,
+sal,comm,deptno
+) e
+where not exists (
+select null
+from (
+select v.empno,v.ename,v.job,v.mgr,v.hiredate,
+v.sal,v.comm,v.deptno, count(*) as cnt
+from v
+group by empno,ename,job,mgr,hiredate,
+sal,comm,deptno
+) v
+where v.empno = e.empno
+and v.ename = e.ename
+and v.job = e.job
+and v.mgr = e.mgr
+and v.hiredate = e.hiredate
+and v.sal = e.sal
+and v.deptno = e.deptno
+and v.cnt = e.cnt
+and coalesce(v.comm,0) = coalesce(e.comm,0)
+);
+
+
+-- 3.8 Identifying and avoiding cartesian products 
+
+SELECT e.ename, d.loc
+FROM emp e, dept d 
+WHERE e.deptno = 10 AND 
+			  d.deptno = e.deptno;
+              
+-- 3.9 Performing joins when using aggregates
+CREATE TABLE emp_bonus (empno INTEGER, received DATE, type INTEGER);
+
+INSERT  emp_bonus (empno, received, type) VALUES (7934, '2005-03-17',1);
+INSERT  emp_bonus (empno, received, type) VALUES (7934, '2005-02-15',2);
+INSERT  emp_bonus (empno, received, type) VALUES (7839, '2005-02-15',3);
+INSERT  emp_bonus (empno, received, type) VALUES (7782, '2005-02-15',1);
+
+SELECT * FROM emp_bonus;
+
+
+SELECT e.empno, e.ename, e.sal, e.deptno, e.sal * CASE WHEN eb.type = 1 THEN .1
+																							   WHEN eb.type = 2 THEN .2
+                                                                                               ELSE .3
+																					END AS bonus
+FROM emp e, emp_bonus eb
+WHERE e.deptno = 10 AND 
+			  e.empno = eb.empno;
+
+
+SELECT deptno, SUM(DISTINCT sal) AS total_sal, SUM(bonus) AS total_bonus 
+FROM (
+			SELECT e.empno, e.ename, e.sal, e.deptno, e.sal * CASE WHEN eb.type = 1 THEN .1
+																										   WHEN eb.type = 2 THEN .2
+																										   ELSE .3
+																								END AS bonus
+			FROM emp e, emp_bonus eb
+			WHERE e.deptno = 10 AND 
+						  e.empno = eb.empno
+			) x
+GROUP BY deptno;
+
+
+select d.deptno,
+d.total_sal,
+sum(e.sal*case when eb.type = 1 then .1
+when eb.type = 2 then .2
+else .3 end) as total_bonus
+from emp e,
+emp_bonus eb,
+(
+select deptno, sum(sal) as total_sal
+from emp
+where deptno = 10
+group by deptno
+) d
+where e.deptno = d.deptno
+and e.empno = eb.empno
+group by d.deptno,d.total_sal;
+
+
+-- 3.10 Performing outer joins when using aggregates 
+
+CREATE TABLE emp_bonus (empno INTEGER, received DATE, type INTEGER);
+
+INSERT  emp_bonus (empno, received, type) VALUES (7934, '2005-03-17',1);
+INSERT  emp_bonus (empno, received, type) VALUES (7934, '2005-02-15',2);
+
+SELECT * FROM emp_bonus;
+
+SELECT deptno,
+			   SUM(sal) AS total_sal,
+               SUM(bonus) AS total_bonus
+FROM (	SELECT e.empno, e.ename, e.sal, e.deptno, e.sal * CASE WHEN eb.type = 1 THEN .1
+																											   WHEN eb.type = 2 THEN .2
+                                                                                                               ELSE .3
+                                                                                                               END AS bonus
+				 FROM emp e, emp_bonus eb
+                 WHERE e.empno = eb.empno AND
+							   e.deptno = 10
+			) x
+GROUP BY deptno;
+
+
+SELECT * FROM emp
+WHERE deptno = 10;
+
+SELECT deptno,
+			   SUM(DISTINCT sal) AS total_sal,
+               SUM(bonus) AS total_bonus
+FROM (
+				SELECT e.empno, e.ename, e.sal, e.deptno, e.sal * CASE WHEN eb.type = 1 THEN .1 
+																											   WHEN eb.type = 2 THEN .2
+                                                                                                               ELSE .3
+                                                                                                               END AS bonus
+				 FROM emp e
+                 LEFT JOIN emp_bonus eb
+                 ON (e.empno = eb.empno)
+                 WHERE e.deptno = 10
+			) x
+GROUP BY deptno;
+
+
+select distinct deptno,total_sal,total_bonus
+from (
+select e.empno,
+e.ename,
+sum(distinct e.sal) over
+(partition by e.deptno) as total_sal,
+e.deptno,
+sum(e.sal*case when eb.type is null then 0
+when eb.type = 1 then .1
+when eb.type = 2 then .2
+else .3
+end) over
+(partition by deptno) as total_bonus
+from emp e left outer join emp_bonus eb
+on (e.empno = eb.empno)
+where e.deptno = 10
+) x;
+-- Error Code: 1235. This version of MySQL doesn't yet support '<window function>(DISTINCT ..)'
+
+
+-- 3.11 Returning missing data from multiple tables
+SELECT d.deptno, d.dname, e.ename
+FROM dept d 
+RIGHT OUTER JOIN emp e
+ON (d.deptno = e.deptno)
+UNION
+SELECT d.deptno, d.dname, e.ename
+FROM dept d
+LEFT OUTER JOIN emp e
+ON (d.deptno = e.deptno); 
+
+
+-- 3.12 Using nulls in operations and comparisons 
+SELECT ename, comm
+FROM emp
+WHERE COALESCE(comm,0) < (SELECT comm FROM emp WHERE ename = 'WARD');
+
+
+
+
+#################################### Chapter 4. Inserting, Updating, Deleting #############################
+
+
+
+
+
+
+
+
+
+
+
 
 
 
